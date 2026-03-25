@@ -320,12 +320,29 @@ nav {
 .time-slot.unavailable { opacity: 0.3; cursor: not-allowed; pointer-events: none; text-decoration: line-through; }
 
 /* Form status */
-.pf-status {
-  margin-top: 16px; padding: 14px 18px; border-radius: 10px;
-  font-size: 14px; font-weight: 500; text-align: center; display: none;
+.pf-overlay {
+  position: fixed; inset: 0; z-index: 9998;
+  background: rgba(0,0,0,0.4);
+  display: none;
 }
-.pf-status.success { display: block; background: rgba(0,180,166,0.1); border: 1px solid rgba(0,180,166,0.2); color: var(--cyan); }
-.pf-status.error { display: block; background: rgba(224,69,123,0.1); border: 1px solid rgba(224,69,123,0.2); color: #fd79a8; }
+.pf-status {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  z-index: 9999; padding: 32px 48px; border-radius: 16px;
+  font-size: 16px; font-weight: 600; text-align: center; display: none;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  min-width: 320px; max-width: 480px;
+}
+.pf-status.success {
+  display: block; background: #fff; border: 2px solid var(--cyan); color: var(--text-primary);
+}
+.pf-status.error {
+  display: block; background: #fff; border: 2px solid #E0457B; color: var(--text-primary);
+}
+.pf-status .pf-close {
+  position: absolute; top: 10px; right: 14px; background: none; border: none;
+  font-size: 22px; cursor: pointer; color: var(--text-muted); line-height: 1;
+}
+.pf-status .pf-close:hover { color: var(--text-primary); }
 
 @media (max-width: 768px) {
   .partners-content { grid-template-columns: 1fr; }
@@ -771,6 +788,9 @@ footer { padding: 36px 0 0; background: #EDE7E1; border-top: 1px solid var(--bor
   </div>
 </section>
 
+<!-- Overlay backdrop for status messages -->
+<div class="pf-overlay" id="pfOverlay" onclick="dismissStatus()"></div>
+
 <div class="section-divider"></div>
 
 <!-- SERVICES -->
@@ -952,7 +972,7 @@ footer { padding: 36px 0 0; background: #EDE7E1; border-top: 1px solid var(--bor
       <div class="footer-divider"></div>
       <div class="footer-contact">
         <h5>Contact Info</h5>
-        <p>Email: <a href="mailto:swathisurya@progressivefinserv.com">swathisurya@progressivefinserv.com</a></p>
+        <p>Email: <a href="/cdn-cgi/l/email-protection#e5969284918d8c9690979c84a595978a82978096968c9380838c8b96809793cb868a88"><span class="__cf_email__" data-cfemail="9ae9edfbeef2f3e9efe8e3fbdaeae8f5fde8ffe9e9f3ecfffcf3f4e9ffe8ecb4f9f5f7">[email&#160;protected]</span></a></p>
         <p>Phone: <a href="tel:+16097511089">+1 (609) 751-1089</a></p>
       </div>
     </div>
@@ -962,7 +982,7 @@ footer { padding: 36px 0 0; background: #EDE7E1; border-top: 1px solid var(--bor
   </div>
 </footer>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 function toggleMobile() { document.getElementById('mobileMenu').classList.toggle('active'); }
 function closeMobile() { document.getElementById('mobileMenu').classList.remove('active'); }
 
@@ -1206,12 +1226,16 @@ document.getElementById('partnerForm').addEventListener('submit', async (e) => {
   // Validation
   if (!name || !email) {
     status.className = 'pf-status error';
-    status.textContent = 'Please enter your name and email address.';
+    status.style.display = 'block'; document.getElementById('pfOverlay').style.display = 'block';
+    status.innerHTML = '<button class="pf-close" onclick="dismissStatus()">&times;</button>Please enter your name and email address.';
+    setTimeout(dismissStatus, 15000);
     return;
   }
   if (!date || !time) {
     status.className = 'pf-status error';
-    status.textContent = 'Please select both a date and time for your appointment.';
+    status.style.display = 'block'; document.getElementById('pfOverlay').style.display = 'block';
+    status.innerHTML = '<button class="pf-close" onclick="dismissStatus()">&times;</button>Please select a date and time.';
+    setTimeout(dismissStatus, 15000);
     return;
   }
 
@@ -1219,6 +1243,8 @@ document.getElementById('partnerForm').addEventListener('submit', async (e) => {
   btn.textContent = 'Sending...';
   status.className = 'pf-status';
   status.style.display = 'none';
+  document.getElementById('pfOverlay').style.display = 'none';
+  status.innerHTML = '';
 
   // Format date/time for display
   const dateObj = new Date(date + 'T' + time + ':00');
@@ -1226,114 +1252,51 @@ document.getElementById('partnerForm').addEventListener('submit', async (e) => {
   const prettyDateTime = dateObj.toLocaleDateString('en-US', options);
 
   // ═══════════════════════════════════════════════
-  // WEB3FORMS INTEGRATION
-  // Replace the access_key below with your Web3Forms key
-  // Get your free key at: https://web3forms.com
-  // Enter swathisurya@progressivefinserv.com to receive emails
+  // VERCEL + RESEND API
+  // Sends proper calendar invite emails to BOTH parties
+  // Replace YOUR_VERCEL_PROJECT with your Vercel deployment URL
   // ═══════════════════════════════════════════════
-  const WEB3FORMS_KEY = 'e0104573-c4b4-4e6b-a8d5-290cf81a2276';
+  const API_URL = 'https://vercel-orp2.vercel.app/api/appointment';
   const SWATHI_EMAIL = 'swathisurya@progressivefinserv.com';
   const ZOOM_LINK = 'https://us06web.zoom.us/j/84404141315?pwd=Fr8paj2dXzS1KECjXArf9cacaTnYjz.1';
 
-  const appointmentDetails = [
-    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-    '📅 APPOINTMENT CONFIRMATION',
-    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-    '',
-    '👤 Name: ' + name,
-    '📧 Email: ' + email,
-    '📋 Subject: ' + subject,
-    '📅 Date & Time: ' + prettyDateTime,
-    '⏱️ Duration: 30 minutes',
-    '📍 Location: 32 Cinder Rd Unit 20, Edison, NJ 08820',
-    '',
-    '🔗 Zoom Meeting:',
-    '   Join: ' + ZOOM_LINK,
-    '   Meeting ID: 844 0414 1315',
-    '   Passcode: 178541',
-    '',
-    '📝 Notes:',
-    notes || '(No notes provided)',
-    '',
-    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
-  ].join('\n');
-
-  // Generate ICS calendar invite first (needed for both success and error)
-  const endDate = new Date(dateObj.getTime() + 30 * 60 * 1000);
-  const icsContent = generateICS({
-    summary: 'Appointment: ' + subject + ' — Progressive Financial Services',
-    description: 'Appointment with Swathi Nalluri\nClient: ' + name + '\nEmail: ' + email + '\n\nJoin Zoom Meeting:\n' + ZOOM_LINK + '\nMeeting ID: 844 0414 1315\nPasscode: 178541\n\nNotes: ' + (notes || 'None'),
-    location: 'Zoom: ' + ZOOM_LINK,
-    start: dateObj,
-    end: endDate,
-    organizerEmail: SWATHI_EMAIL,
-    organizerName: 'Swathi Nalluri',
-    attendeeEmail: email,
-    attendeeName: name,
-    zoomLink: ZOOM_LINK
-  });
-  const icsBlob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
-  const icsUrl = URL.createObjectURL(icsBlob);
-
   try {
-    // Send to Swathi via Web3Forms
-    const response = await fetch('https://api.web3forms.com/submit', {
+    const response = await fetch(API_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify({
-        access_key: WEB3FORMS_KEY,
-        subject: '📅 New Appointment: ' + subject + ' — ' + prettyDateTime,
-        from_name: name + ' via Progressive Financial',
-        name: name,
-        email: email,
-        replyto: email,
-        message: appointmentDetails + '\n\nPlease reply to confirm. Reply goes to: ' + email,
-        botcheck: ''
-      })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, subject, date, time, notes })
     });
 
     const data = await response.json();
 
     if (data.success) {
       status.className = 'pf-status success';
+      status.style.display = 'block'; document.getElementById('pfOverlay').style.display = 'block';
+
+      let emailMsg = '';
+      if (data.swathiSent && data.clientSent) {
+        emailMsg = '📧 Calendar invite sent to <strong>' + email + '</strong> and Swathi Nalluri.';
+      } else if (data.swathiSent) {
+        emailMsg = '📧 Swathi Nalluri has been notified. Check your inbox for the invite.';
+      } else if (data.clientSent) {
+        emailMsg = '📧 Calendar invite sent to <strong>' + email + '</strong>.';
+      }
+
       status.innerHTML =
-        '<strong>✅ Appointment request sent to Swathi Nalluri!</strong><br><br>' +
-        '📅 ' + prettyDateTime + ' (30 min)<br>' +
-        '🔗 <a href="' + ZOOM_LINK + '" target="_blank" style="color:var(--accent)">Join Zoom Meeting</a>' +
-        ' <span style="font-size:12px;color:var(--text-muted)">(ID: 844 0414 1315 · Passcode: 178541)</span><br><br>' +
-        '📧 Swathi has been notified at ' + SWATHI_EMAIL + '<br>' +
-        'She will confirm your appointment shortly.<br><br>' +
-        '<strong>Download your calendar invite:</strong><br>' +
-        '<a href="' + icsUrl + '" download="appointment-progressive-financial.ics" ' +
-        'style="display:inline-flex;align-items:center;gap:6px;padding:12px 24px;margin-top:8px;background:var(--gradient-1);color:#fff;' +
-        'border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">' +
-        '📅 Add to Your Calendar (.ics)</a>' +
-        '<br><small style="color:var(--text-muted);margin-top:10px;display:block;">' +
-        'Open the .ics file to add this appointment to your calendar (Zoho, Google, Outlook, Apple).<br>' +
-        'The invite includes Zoom link and Accept/Decline options.</small>';
+        '<button class="pf-close" onclick="this.parentElement.style.display=\'none\'">&times;</button>' +
+        '✅ <strong>Appointment booked successfully!</strong> Check your email for confirmation.';
+      setTimeout(dismissStatus, 15000);
     } else {
-      status.className = 'pf-status error';
-      status.innerHTML =
-        '⚠️ Could not send request. Please try again or email ' +
-        '<a href="mailto:' + SWATHI_EMAIL + '" style="color:var(--accent)">' + SWATHI_EMAIL + '</a> directly.<br><br>' +
-        'You can still download the calendar invite:<br>' +
-        '<a href="' + icsUrl + '" download="appointment-progressive-financial.ics" ' +
-        'style="display:inline-flex;align-items:center;gap:6px;padding:10px 20px;margin-top:8px;background:var(--gradient-1);color:#fff;' +
-        'border-radius:8px;text-decoration:none;font-weight:600;font-size:13px;">' +
-        '📅 Download Calendar Invite</a>';
+      throw new Error(data.error || 'Failed to send');
     }
   } catch (err) {
-    console.error('Form submission error:', err);
+    console.error('Appointment error:', err);
     status.className = 'pf-status error';
+    status.style.display = 'block'; document.getElementById('pfOverlay').style.display = 'block';
     status.innerHTML =
-      '⚠️ Network error. Please try again or email ' +
-      '<a href="mailto:' + SWATHI_EMAIL + '" style="color:var(--accent)">' + SWATHI_EMAIL + '</a> directly.<br><br>' +
-      'You can still download the calendar invite:<br>' +
-      '<a href="' + icsUrl + '" download="appointment-progressive-financial.ics" ' +
-      'style="display:inline-flex;align-items:center;gap:6px;padding:10px 20px;margin-top:8px;background:var(--gradient-1);color:#fff;' +
-      'border-radius:8px;text-decoration:none;font-weight:600;font-size:13px;">' +
-      '📅 Download Calendar Invite</a>';
-  }
+      '<button class="pf-close" onclick="this.parentElement.style.display=\'none\'">&times;</button>' +
+      '⚠️ <strong>Could not book appointment.</strong> Please try again.';
+    setTimeout(dismissStatus, 15000);  }
 
   // Reset form
   document.getElementById('partnerForm').reset();
@@ -1346,64 +1309,9 @@ document.getElementById('partnerForm').addEventListener('submit', async (e) => {
   btn.textContent = 'Send Appointment Request →';
 });
 
-// ═══════════════════════════════════
-// ICS CALENDAR INVITE GENERATOR
-// Generates proper RFC 5545 compliant .ics with Accept/Decline support
-// Compatible with Zoho Calendar, Google Calendar, Outlook, Apple Calendar
-// ═══════════════════════════════════
-function generateICS({ summary, description, location, start, end, organizerEmail, organizerName, attendeeEmail, attendeeName, zoomLink }) {
-  const pad = (n) => String(n).padStart(2, '0');
-  function toICS(d) {
-    return d.getUTCFullYear() + pad(d.getUTCMonth()+1) + pad(d.getUTCDate()) +
-      'T' + pad(d.getUTCHours()) + pad(d.getUTCMinutes()) + pad(d.getUTCSeconds()) + 'Z';
-  }
-
-  // Escape special characters for ICS description
-  const escDesc = description.replace(/\n/g, '\\n').replace(/,/g, '\\,').replace(/;/g, '\\;');
-
-  const uid = Date.now() + '-' + Math.random().toString(36).substr(2,9) + '@progressivefinserv.com';
-  const lines = [
-    'BEGIN:VCALENDAR',
-    'VERSION:2.0',
-    'PRODID:-//Progressive Financial Services//Appointment//EN',
-    'CALSCALE:GREGORIAN',
-    'METHOD:REQUEST',
-    'X-WR-CALNAME:Progressive Financial Services',
-    'BEGIN:VEVENT',
-    'UID:' + uid,
-    'DTSTAMP:' + toICS(new Date()),
-    'DTSTART:' + toICS(start),
-    'DTEND:' + toICS(end),
-    'SUMMARY:' + summary,
-    'DESCRIPTION:' + escDesc,
-    'LOCATION:' + location,
-    'URL:' + (zoomLink || ''),
-    'ORGANIZER;CN=' + organizerName + ';SENT-BY="mailto:' + organizerEmail + '":mailto:' + organizerEmail,
-    'ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE;CN=' + attendeeName + ';X-NUM-GUESTS=0:mailto:' + attendeeEmail,
-    'ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=ACCEPTED;RSVP=FALSE;CN=' + organizerName + ';X-NUM-GUESTS=0:mailto:' + organizerEmail,
-    'TRANSP:OPAQUE',
-    'STATUS:CONFIRMED',
-    'SEQUENCE:0',
-    'X-MICROSOFT-CDO-BUSYSTATUS:BUSY',
-    'X-MICROSOFT-CDO-IMPORTANCE:1',
-    'X-GOOGLE-CONFERENCE:' + (zoomLink || ''),
-    'BEGIN:VALARM',
-    'TRIGGER:-PT15M',
-    'ACTION:DISPLAY',
-    'DESCRIPTION:Reminder: Appointment in 15 minutes',
-    'END:VALARM',
-    'BEGIN:VALARM',
-    'TRIGGER:-PT15M',
-    'ACTION:EMAIL',
-    'SUMMARY:Reminder: ' + summary,
-    'DESCRIPTION:Your appointment is in 15 minutes.',
-    'ATTENDEE:mailto:' + attendeeEmail,
-    'END:VALARM',
-    'END:VEVENT',
-    'END:VCALENDAR'
-  ];
-
-  return lines.join('\r\n');
+function dismissStatus() {
+  document.getElementById("pfStatus").style.display = "none";
+  document.getElementById("pfOverlay").style.display = "none";
 }
 </script>
 </body>
